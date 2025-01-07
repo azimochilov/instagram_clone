@@ -16,6 +16,9 @@ class Post(BaseModel):
         verbose_name = 'post'
         verbose_name_plural = 'posts'
 
+    def __str__(self):
+        return f"{self.author}'s post is {self.caption}"
+
 class PostComment(BaseModel):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
@@ -24,13 +27,18 @@ class PostComment(BaseModel):
         'self', null=True, blank=True, related_name='child', on_delete=models.CASCADE
     )
 
+    def __str__(self):
+        return f"comment by {self.author}"
+
 class PostLike(BaseModel):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='likes')
 
     class Meta:
         constraints = [
-            UniqueConstraint(fields=['author', 'post'],)
+            UniqueConstraint(fields=['author', 'post'],
+                             name='postLikeUnique'
+                             )
         ]
 
 
@@ -40,5 +48,6 @@ class CommentLike(BaseModel):
 
     class Meta:
         constraints = [
-            UniqueConstraint(fields=['author', 'comment'],)
+            UniqueConstraint(fields=['author', 'comment'],
+                             name='c    ommentLikeUnique')
         ]
