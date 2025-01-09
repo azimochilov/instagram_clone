@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'phonenumbers',
     'twilio',
+    'drf_yasg',
 
     #local apps
     'users',
