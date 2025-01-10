@@ -12,18 +12,26 @@ phone_regex = re.compile(r'(\+[0-9]+\s*)?(\([0-9]+\))?[\s0-9\-]+[0-9]+')
 username_regex = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
 def check_email_or_phone(email_or_phone):
-    phone_number = phonenumbers.parse(email_or_phone)
-    if re.fullmatch(email_regex,email_or_phone):
-        email_or_phone = "email"
-    elif phonenumbers.is_valid_number(phone_number):
-        email_or_phone = "phone"
-    else:
-        data = {
-            "success": False,
-            "message": "Email or phone is not valid."
-        }
-        raise ValidationError(data)
-    return email_or_phone
+    # Check if the input is an email
+    if re.fullmatch(email_regex, email_or_phone):
+        return "email"
+
+    # Check if the input matches a phone number pattern
+    if re.fullmatch(phone_regex, email_or_phone):
+        try:
+            # Attempt to parse and validate the phone number
+            phone_number = phonenumbers.parse(email_or_phone)
+            if phonenumbers.is_valid_number(phone_number):
+                return "phone"
+        except phonenumbers.phonenumberutil.NumberParseException:
+            pass
+
+    # If neither email nor valid phone number, raise validation error
+    data = {
+        "success": False,
+        "message": "Email or phone is not valid."
+    }
+    raise ValidationError(data)
 
 def check_user_type(user_input):
 

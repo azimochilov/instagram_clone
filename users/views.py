@@ -11,13 +11,12 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
+from drf_yasg.utils import swagger_auto_schema
 from shared.utility import send_email, check_email_or_phone
-from .models import User, DONE, CODE_VERIFIED, NEW, VIA_EMAIL, VIA_PHONE
+from .models import User, CODE_VERIFIED, NEW, VIA_EMAIL, VIA_PHONE
 from .serializer import SignUpSerializer, ChangeUserInformation, ChangeUserPhotoSerializer, LoginSerializer, \
     LoginRefreshSerializer, LogoutSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
-
-
+from drf_yasg import openapi
 class CreateUserView(CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (permissions.AllowAny,)
@@ -25,6 +24,14 @@ class CreateUserView(CreateAPIView):
 
 class VerifyAPIView(APIView):
     permission_classes = (IsAuthenticated, )
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'code': openapi.Schema(type=openapi.TYPE_STRING, description="The verification code sent to the user.")
+            }
+        )
+    )
     def post(self, request, *args, **kwargs):
         user = self.request.user
         code = self.request.data.get('code')
@@ -193,4 +200,3 @@ class ResetPasswordView(UpdateAPIView):
             "access": user.token()['access'],
             "refresh_token": user.token()['refresh_token'],
         })
-

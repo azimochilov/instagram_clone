@@ -301,4 +301,25 @@ class ResetPasswordSerializer(serializers.Serializer):
     def update(self , instance, validated_data):
         password = validated_data.pop('password')
         instance.set_password(password)
-        return super(ResetPasswordSerizalizer, self).update(instance, validated_data)
+        return super(ResetPasswordSerializer, self).update(instance, validated_data)
+
+
+class UserSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'username',
+            'email',
+            'phone_number',
+            'user_roles',
+            'AUTH_TYPE',
+            'AUTH_STATUS',
+            'photo',
+            'full_name'
+        ]
+
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
