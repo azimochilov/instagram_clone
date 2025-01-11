@@ -95,79 +95,52 @@ class SignUpSerializer(serializers.ModelSerializer):
         return data
 
 class ChangeUserInformation(serializers.Serializer):
-    first_name = serializers.CharField(required=True, write_only=True)
-    last_name = serializers.CharField(required=True, write_only=True)
-    username = serializers.CharField(required=True, write_only=True)
-    password = serializers.CharField(required=True, write_only=True)
-    confirm_password = serializers.CharField(required=True, write_only=True)
+    first_name = serializers.CharField(write_only=True, required=True)
+    last_name = serializers.CharField(write_only=True, required=True)
+    username = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(write_only=True, required=True)
 
     def validate(self, data):
         password = data.get('password', None)
         confirm_password = data.get('confirm_password', None)
-        if password != confirm_password:
-            raise ValidationError({
-                'message': 'Passwords do not match'
-            })
+        if password !=confirm_password:
+            raise ValidationError(
+                {
+                    "message": "Parolingiz va tasdiqlash parolingiz bir-biriga teng emas"
+                }
+            )
         if password:
             validate_password(password)
             validate_password(confirm_password)
+
         return data
 
     def validate_username(self, username):
-        if len(username) < 3 or len(username) > 30:
-            raise ValidationError({
-                'message': 'Username must be between 3 and 30 characters'
-            })
+        if len(username) < 5 or len(username) > 30:
+            raise ValidationError(
+                {
+                    "message": "Username must be between 5 and 30 characters long"
+                }
+            )
         if username.isdigit():
-            raise ValidationError({
-                'message': 'Username must only contain numbers'
-            })
-
-    def validate_first_name(self, first_name):
-        if len(first_name) < 3 or len(first_name) > 30:
-            raise ValidationError({
-                'message': 'First name must be between 3 and 30 characters'
-            })
-        if first_name.isdigit():
-            raise ValidationError({
-                'message': 'Firs name cannot be numeric'
-            })
-        if first_name.isalpha():
-            raise ValidationError({
-                'message': 'First name must only contain letters'
-            })
-
-
-    def validate_last_name(self, last_name):
-
-        if len(last_name) < 3 or len(last_name) > 30:
-            raise ValidationError({
-                'message': 'Last name must be between 3 and 30 characters'
-            })
-
-        if last_name.isdigit():
-            raise ValidationError({
-                'message': 'Last name cannot be numeric'
-            })
-
-        if last_name.isalpha():
-            raise ValidationError({
-                'message': 'Last name must only contain letters'
-            })
+            raise ValidationError(
+                {
+                    "message": "This username is entirely numeric"
+                }
+            )
+        return username
 
     def update(self, instance, validated_data):
 
         instance.first_name = validated_data.get('first_name', instance.first_name)
         instance.last_name = validated_data.get('last_name', instance.last_name)
-        instance.username = validated_data.get('username', instance.username)
         instance.password = validated_data.get('password', instance.password)
-
+        instance.username = validated_data.get('username', instance.username)
         if validated_data.get('password'):
             instance.set_password(validated_data.get('password'))
-
         if instance.AUTH_STATUS == CODE_VERIFIED:
             instance.AUTH_STATUS = DONE
-
         instance.save()
         return instance
 
@@ -215,7 +188,7 @@ class LoginSerializer(TokenObtainSerializer):
         }
 
         current_user = User.objects.filter(username__iexact=username).first()
-        if current_user.auth_status == NEW or current_user.auth_status == CODE_VERIFIED and current_user is not None:
+        if current_user.AUTH_STATUS == NEW or current_user.AUTH_STATUS == CODE_VERIFIED and current_user is not None:
             raise ValidationError({
                 'success': False,
                 'message': "You did not completed registration yet"
@@ -235,7 +208,7 @@ class LoginSerializer(TokenObtainSerializer):
         if self.user.AUTH_STATUS not in [DONE, PHOTO_STEP]:
             raise PermissionDenied('You do not have permission to perform this action')
         data = self.user.token()
-        data['auth_status'] = self.user.auth_status
+        data['AUTH_STATUS'] = self.user.AUTH_STATUS
         return data
 
     def get_user(self, **kwargs):
@@ -277,7 +250,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
 
         attrs['user'] = user.first()
 
-class ResetPasswordSerializer(serializers.Serializer):
+class ResetPasswordSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(required=True)
     password = serializers.CharField(write_only=True, required=True,min_length=8)
     confirm_password = serializers.CharField(write_only=True, required=True,min_length=8)

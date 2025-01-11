@@ -1,8 +1,10 @@
 from datetime import datetime
 
 from django.core.exceptions import ObjectDoesNotExist
-from rest_framework import permissions
+from rest_framework import permissions, status
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError, NotFound
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from rest_framework.generics import CreateAPIView, UpdateAPIView, GenericAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -96,39 +98,80 @@ class GetNewVerification(APIView):
 
 
 class ChangeUserInformationView(UpdateAPIView):
-    permission_classes = (IsAuthenticated, )
+    permission_classes = (IsAuthenticated,)
     serializer_class = ChangeUserInformation
     http_method_names = ['put', 'patch']
 
     def get_object(self):
         return self.request.user
 
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING, description="The user's first name."),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING, description="The user's last name."),
+                'username': openapi.Schema(type=openapi.TYPE_STRING, description="The user's username."),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, description="The new password for the user."),
+                'confirm_password': openapi.Schema(type=openapi.TYPE_STRING, description="Confirmation of the new password."),
+            },
+            required=['first_name', 'last_name', 'username', 'password', 'confirm_password']
+        )
+    )
     def update(self, request, *args, **kwargs):
+        # Process the update request with the serializer
         super(ChangeUserInformationView, self).update(request, *args, **kwargs)
-
         data = {
             "success": True,
-            "message" : "User updated successfully",
-            "AUTH_STATUS": self.request.user.AUTH_STATUS,
+            "message": "User updated successfully",
+            "AUTH_STATUS": self.request.user.AUTH_STATUS,  # Assuming AUTH_STATUS is an existing field
         }
-        return Response(data, status=200)
-
+        return Response(data, status=status.HTTP_200_OK)
 
 class ChangeUserPhotoView(APIView):
-    permission_classes = (IsAuthenticated, )
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (MultiPartParser, FormParser,)
 
+    @swagger_auto_schema(
+        operation_summary="Change user's photo",
+        operation_description="Allows an authenticated user to update their profile photo by uploading a file.",
+        manual_parameters=[
+            openapi.Parameter(
+                'photo',
+                openapi.IN_FORM,
+                description="Upload the photo file",
+                type=openapi.TYPE_FILE,
+                required=True,
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description="User photo updated successfully.",
+                examples={
+                    "application/json": {
+                        "message": "User's photo updated successfully",
+                        "photo_url": "http://example.com/media/user_photos/photo.jpg"
+                    }
+                },
+            ),
+            400: "Invalid input or file upload failed.",
+        },
+    )
     def put(self, request, *args, **kwargs):
-        serializer = ChangeUserPhotoSerializer(data=request.data)
-        if serializer.is_valid():
-            user = request.user
-            serializer.update(user, serializer.validated_data)
-            return Response({
-                "message" : "User's photo updated successfully"
-            }, status=200)
-        return Response(
-            serializer.errors, status=400
-        )
+        # Get the uploaded file from the request
+        file = request.FILES.get('photo')  # Expecting 'photo' as the file field name
+        if not file:
+            return Response({"error": "No photo file provided."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Update user's photo field (assuming the user model has a 'photo' field)
+        user = request.user
+        user.photo = file  # Replace 'photo' with your actual user model field for photos
+        user.save()
+
+        return Response({
+            "message": "User's photo updated successfully",
+            "photo_url": request.build_absolute_uri(user.photo.url)
+        }, status=status.HTTP_200_OK)
 
 class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
