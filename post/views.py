@@ -9,6 +9,7 @@ from .serializers import PostSerializer, PostLikeSerializer, CommentSerializer, 
 from shared.custom_pagination import CustomPagination
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 class PostListAPIView(ListAPIView):
@@ -28,23 +29,25 @@ class PostListAPIView(ListAPIView):
 class PostCreateAPIView(CreateAPIView):
     serializer_class = PostSerializer
     permission_classes = [IsAuthenticated, ]
+    parser_classes = (MultiPartParser, FormParser)
 
+    # Swagger documentation for the view
     @swagger_auto_schema(
-        operation_summary="Create a post",
-        operation_description="Allows an authenticated user to create a new post.",
+        operation_description="Create a new post",
         request_body=PostSerializer,
         responses={
-            201: openapi.Response(description="Created", schema=PostSerializer())
+            201: openapi.Response('Post created successfully', PostSerializer),
+            400: 'Bad Request',
+            401: 'Unauthorized'
         }
     )
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-
 class PostRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, ]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     @swagger_auto_schema(
         operation_summary="Retrieve a post",
@@ -52,7 +55,9 @@ class PostRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
         responses={status.HTTP_200_OK: openapi.Response('Success', PostSerializer)}
     )
     def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+        post = self.get_object()
+        serializer = self.serializer_class(post, context={'request': request})
+        return Response(serializer.data)
 
     @swagger_auto_schema(
         operation_summary="Update a post",
@@ -62,7 +67,7 @@ class PostRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
     )
     def put(self, request, *args, **kwargs):
         post = self.get_object()
-        serializer = self.serializer_class(post, data=request.data)
+        serializer = self.serializer_class(post, data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -80,6 +85,7 @@ class PostRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
             'message': 'Post deleted.',
             'code': status.HTTP_204_NO_CONTENT,
         })
+
 
 class PostCommentListAPIView(ListAPIView):
     serializer_class = CommentSerializer
